@@ -1,5 +1,4 @@
 {"device":"XYZ-568","deviceid":"XYZ-568/0.046962861748837","devicecode":"jf","label":"device:SydneyXYZ-568/0.046962861748837","City":"Sydney"}
-{"device":"XYZ-598","deviceid":"XYZ-598/0.699338355255846","devicecode":"nK","label":"device:SydneyXYZ-598/0.699338355255846","City":"Sydney"}
 {"device":"GHI-230","deviceid":"GHI-230/0.0405259550027508","devicecode":"Ko","label":"device:MelbourneGHI-230/0.0405259550027508","City":"Melbourne"}
 {"device":"XYZ-55","deviceid":"XYZ-55/0.357558884583449","devicecode":"lE","label":"device:MelbourneXYZ-55/0.357558884583449","City":"Melbourne"}
 {"device":"GHI-199","deviceid":"GHI-199/0.945206772410166","devicecode":"Eq","label":"device:AdelaideGHI-199/0.945206772410166","City":"Adelaide"}
@@ -4894,6 +4893,7 @@
 {"device":"GHI-963","deviceid":"GHI-963/0.896360801749867","devicecode":"Bq","label":"device:CanberraGHI-963/0.896360801749867","City":"Canberra"}
 {"device":"ABC-976","deviceid":"ABC-976/0.848254126811535","devicecode":"na","label":"device:MelbourneABC-976/0.848254126811535","City":"Melbourne"}
 {"device":"ABC-60","deviceid":"ABC-60/0.190962845110225","devicecode":"nZ","label":"device:SydneyABC-60/0.190962845110225","City":"Sydney"}
+{"device":"XYZ-598","deviceid":"XYZ-598/0.699338355255846","devicecode":"nK","label":"device:SydneyXYZ-598/0.699338355255846","City":"Sydney"}
 {"device":"ABC-655","deviceid":"ABC-655/0.51267596522387","devicecode":"PY","label":"device:AdelaideABC-655/0.51267596522387","City":"Adelaide"}
 {"device":"ABC-663","deviceid":"ABC-663/0.256493033841844","devicecode":"Wc","label":"device:AdelaideABC-663/0.256493033841844","City":"Adelaide"}
 {"device":"LMN-872","deviceid":"LMN-872/0.268645264772037","devicecode":"oQ","label":"device:AdelaideLMN-872/0.268645264772037","City":"Adelaide"}
