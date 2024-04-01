@@ -191,7 +191,7 @@ def row_to_json(row):
 def generate_asm_using_loads(input_file_path, output_file_path, edge_file):
 
     count = 0
-    with open(output_file_path, 'w', encoding='utf-8') as file2:
+    with open(output_file_path, 'w+', encoding='utf-8') as file2:
 
         with pd.read_json(input_file_path, lines=True, chunksize=25000) as reader:
             for chunk in reader:
