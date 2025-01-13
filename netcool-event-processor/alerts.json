@@ -1,0 +1,28 @@
+{
+    "alerts": [
+        {
+            "Node": "ABCD",
+            "AlertKey": "LinkDown1234",
+            "AlertGroup": "LinkStatus",
+            "Manager": "SimulatedEvents",
+            "Summary": "Link Down for LinkDown1234",
+            "Identifier": "ABCD_LinkDown1234_LinkStatus_SimulatedEvents_1",
+            "OwnerGID": 0,
+            "Severity": 4,
+            "OwnerUID": 0,
+            "Type": 1
+        },
+        {
+            "Node": "XYZ",
+            "AlertKey": "LinkDown999",
+            "AlertGroup": "LinkStatus",
+            "Manager": "SimulatedEvents",
+            "Summary": "Link Down for LinkDown999",
+            "Identifier": "XYZ_LinkDown999_LinkStatus_SimulatedEvents_1",
+            "OwnerGID": 0,
+            "Severity": 4,
+            "OwnerUID": 0,
+            "Type": 1
+        }
+    ]
+}
