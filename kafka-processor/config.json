@@ -1,0 +1,34 @@
+{
+    "kafka": {
+        "KAFKA_BROKER": "0.0.0.0:9092",
+        "TOPIC": "FixedDomain",
+        "GROUP_ID": "FixedDomain-user",
+        "BATCH_SIZE": 20,
+        "BATCH_TIMEOUT_SECONDS": 300
+    },
+    "aiops": {
+        "RETRY_LIMIT": 3,
+        "AIOPS_HOST": "http://localhost:8080",
+        "METRICS_API_URI": "/aiops/api/app/metric-api/v1/metrics",
+        "TENANT_ID": "cfd95b7e-3bc7-4006-a4a8-a73a79c71255",
+        "API_KEY": "abd"
+    },
+    "scriptConfig": {
+        
+        "IPCORE": {
+            "BASE_DIR": "ipcore",
+            "metric_keys": [
+                "Octets In",
+                "Octets Out",
+                "Throughput In",
+                "Throughput Out",
+                "Bandwidth",
+                "Utilization In",
+                "Utilization Out",
+                "Interface Availability",
+                "Errors In",
+                "Errors Out"
+            ]
+        }
+    }
+}

@@ -183,7 +183,7 @@ def perform_disk_cleanup(config: AppConfig, days: int = 7):
 
 
 def kafka_consumer(app_config: AppConfig):
-    logger.info(f"Consuming Kafka messages from {app_config.kafka.KAFKA_BROKER} {app_config.kafka.TOPIC=}")
+    logger.info(f"Consuming Kafka messages from {app_config.kafka.KAFKA_BROKER} Topic: {app_config.kafka.TOPIC}")
 
     consumer = KafkaConsumer(
         app_config.kafka.TOPIC,
@@ -200,7 +200,7 @@ def kafka_consumer(app_config: AppConfig):
 
     try:
         for message in consumer:
-            retry_failed_files(AppConfig.aiops, app_config)
+            retry_failed_files(app_config.aiops, app_config)
             if stop_event.is_set():
                 logger.info("Shutdown signal received. Exiting Kafka loop.")
                 break
@@ -233,7 +233,6 @@ def kafka_consumer(app_config: AppConfig):
 
     except json.JSONDecodeError as e:
         logger.error(f"JSON decode error: {e}")
-
     except KeyboardInterrupt:
         logger.info("Shutting down consumer due to keyboard interrupt")
     except Exception as e:
@@ -288,10 +287,10 @@ def read_json_lines(file_path: Path) -> List[dict]:
 
 def retry_failed_files(aiops_config: AIOpsConfig, script_config: AppConfig):
     failed_dir = Path(script_config.FAILED_DIR)
-    files = sorted(failed_dir.glob("*.json"))
+    files = sorted(failed_dir.glob("processing*.json"))
 
     if not files:
-        logger.info("No failed files to retry.")
+        logger.debug("No failed files to retry.")
         return
 
     logger.info(f"Retrying {len(files)} failed files...")
@@ -302,12 +301,12 @@ def retry_failed_files(aiops_config: AIOpsConfig, script_config: AppConfig):
 
         for attempt in range(1, aiops_config.RETRY_LIMIT + 1):
             try:
-                with file_path.open("rb") as f:
-                    json_lines = read_json_lines(f)
-                    resp = post_metrics(aiops_config, payload={"groups": json_lines})
+                json_lines = read_json_lines(file_path)
+                payload = {"groups": json_lines}
+                resp = post_metrics(aiops_config, payload=payload)
 
                 if resp.status_code == 200:
-                    new_filename = file_path.name.replace("failed_", "processed_retry_")
+                    new_filename = file_path.name.replace("processing", "processed_retry")
                     dest = Path(script_config.PROCESSED_DIR) / new_filename
                     logger.info(f"Retry success. Moving {file_path} → {dest}")
                     shutil.move(str(file_path), dest)
@@ -323,16 +322,18 @@ def retry_failed_files(aiops_config: AIOpsConfig, script_config: AppConfig):
 
         if not success:
             logger.error(f"Retry failed for {file_path.name} after {aiops_config.RETRY_LIMIT} attempts")
+            new_filename = file_path.name.replace("processing", "retry_failed")
+            dest = Path(script_config.FAILED_DIR) / new_filename
+            logger.error(f"Renaming file {file_path.name} to {dest}")
+            shutil.move(str(file_path), dest)
 
 
 def post_metrics(aiops_config: AIOpsConfig, payload) -> requests.Response:
-    headers = (
-        {
-            "Content-Type": "application/json",
-            "Authorization": f"ZenApiKey {aiops_config.API_KEY}",
-            "X-TenantID": aiops_config.TENANT_ID,
-        },
-    )
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"ZenApiKey {aiops_config.API_KEY}",
+        "X-TenantID": aiops_config.TENANT_ID,
+    }
     timeout = 30
     return requests.post(
         f"{aiops_config.AIOPS_HOST}/{aiops_config.METRICS_API_URI}",
@@ -354,10 +355,9 @@ def send_to_api(aiops_config: AIOpsConfig, script_config: AppConfig):
         success = False
         for attempt in range(1, aiops_config.RETRY_LIMIT + 1):
             try:
-                with file_path.open("rb") as f:
-                    json_lines = read_json_lines(f)
+                json_lines = read_json_lines(file_path)
 
-                    resp = post_metrics(aiops_config, payload={"groups": json_lines})
+                resp = post_metrics(aiops_config, payload={"groups": json_lines})
 
                 if resp.status_code == 200:
                     new_filename = file_path.name.replace("processing_", "processed_")
