@@ -1,6 +1,6 @@
 {
     "kafka": {
-        "KAFKA_BROKER": "0.0.0.0:9092",
+        "KAFKA_BROKER": "localhost:9092",
         "TOPIC": "FixedDomain",
         "GROUP_ID": "FixedDomain-user",
         "BATCH_SIZE": 10,
@@ -12,8 +12,8 @@
         "BACKOFF_FACTOR": 2,
         "AIOPS_HOST": "http://localhost:8080",
         "METRICS_API_URI": "/aiops/api/app/metric-api/v1/metrics",
-        "TENANT_ID": "cfd95b7e-3bc7-4006-a4a8-a73a79c71255",
-        "API_KEY": "abd"
+        "TENANT_ID": "your-tenant-id-here",
+        "API_KEY": "your-api-key-here"
     },
     "scriptConfig": {
         "IPCORE": {

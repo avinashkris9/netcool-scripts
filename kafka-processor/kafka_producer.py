@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 import json
 import time
-from kafka import KafkaProducer
 from datetime import datetime
+
+from kafka import KafkaProducer
 
 # Kafka Configuration
 KAFKA_BROKER = "0.0.0.0:9092"  # Change to match your setup
@@ -15,8 +16,10 @@ def generate_sample_message(device_name="Router-1", interface="eth0"):
     timestamp = int(time.time())
     return {
         "collectionTimeEpoch": timestamp,
+        "networkElementPath": f"abcd > xyz > blah > blahbal > {device_name} > {interface}",
+        "recordTypeName": "interface",
         "data": [
-            {"name": "Device Name", "value": device_name},
+            {"name": "Devices Name", "value": device_name},
             {"name": "Interface Name", "value": interface},
             {"name": "Octets In", "value": 123456},
             {"name": "Octets Out", "value": 654321},
@@ -50,4 +53,4 @@ def send_messages(num_messages=10, delay=1):
 
 
 if __name__ == "__main__":
-    send_messages(num_messages=5555, delay=0.5)
+    send_messages(num_messages=200, delay=0)
