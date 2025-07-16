@@ -14,10 +14,9 @@
         "API_KEY": "abd"
     },
     "scriptConfig": {
-        
         "IPCORE": {
             "BASE_DIR": "ipcore",
-            "metric_keys": [
+            "METRIC_KEYS": [
                 "Octets In",
                 "Octets Out",
                 "Throughput In",
@@ -28,6 +27,15 @@
                 "Interface Availability",
                 "Errors In",
                 "Errors Out"
+            ],
+            "METRIC_GROUP_ID": "IPCore Network",
+            "METRIC_RESOURCE_ID_FIELDS": [
+                "Device Name",
+                "Interface Name"
+            ],
+            "METRIC_TIMESTAMP_FIELD": "collectionTimeEpoch",
+            "METRIC_NODE_FIELDS": [
+                "Device Name"
             ]
         }
     }

@@ -10,7 +10,7 @@ import logging
 from pathlib import Path
 from dataclasses import dataclass
 import time
-from typing import Dict, List
+from typing import Dict, List, Optional
 import argparse
 import signal
 import threading
@@ -82,7 +82,11 @@ class AIOpsConfig:
 @dataclass
 class ScriptConfig:
     BASE_DIR: str
-    metric_keys: List[str]
+    METRIC_KEYS: List[str]
+    METRIC_GROUP_ID: str
+    METRIC_RESOURCE_ID_FIELDS: List[str]
+    METRIC_TIMESTAMP_FIELD: str
+    METRIC_NODE_FIELDS: List[str]
 
 
 @dataclass
@@ -217,7 +221,6 @@ def kafka_consumer(app_config: AppConfig):
             if len(raw_batch) >= app_config.kafka.BATCH_SIZE or (time.time() - last_flush) > app_config.kafka.BATCH_TIMEOUT_SECONDS:
                 logger.info(f"Batch size exceeded {len(raw_batch)}. Processing")
                 ts = datetime.now().strftime("%Y%m%d%H%M%S")
-
                 raw_file = app_config.INCOMING_DIR / f"raw_{ts}.json"
                 processing_file = app_config.PROCESSING_DIR / f"processing_{ts}.json"
                 add_to_batch_file(raw_file, raw_batch)
@@ -250,28 +253,40 @@ def transform_message(entry, app_config: AppConfig):
             None,
         )
 
-    raw_timestamp = entry.get("collectionTimeEpoch")
-    if not raw_timestamp:
-        return None
+    # used to set key fields
+    def get_attributes(config_list: List):
+        values = []
+        for field in config_list:
+            data_value = get_value(field)
+            if not data_value:
+                logger.error(f"Unable to process data {str(entry)}. data is missing field {field}")
+                return False
+            values.append(data_value)
+        return values
+
+    if app_config.script.METRIC_TIMESTAMP_FIELD not in entry:
+        logger.error(f"The data is missing timestamp field {entry}")
+        return False
+    else:
+        raw_timestamp = entry.get(app_config.script.METRIC_TIMESTAMP_FIELD)
 
     # Normalize timestamp (convert to ms if it's in seconds)
     timestamp = int(raw_timestamp)
     if len(str(timestamp)) == 10:
         timestamp *= 1000
 
-    device_name = get_value("Device Name")
-    interface_name = get_value("Interface Name")
-    if not device_name or not interface_name:
-        return None
+    resource_id_list = get_attributes(app_config.script.METRIC_RESOURCE_ID_FIELDS)
+    resource_id = " ".join(resource_id_list)
+    node_list = get_attributes(app_config.script.METRIC_NODE_FIELDS)
+    node_id = " ".join(node_list)
 
-    # Metrics to extract
-    metric_keys = app_config.script.metric_keys
+    metric_keys = app_config.script.METRIC_KEYS
     metrics = {key.replace(" ", "_"): get_value(key) for key in metric_keys}
 
     return {
         "timestamp": timestamp,
-        "resourceID": f"{device_name} {interface_name}",
-        "attributes": {"group": "IPCore Network", "node": device_name},
+        "resourceID": resource_id,
+        "attributes": {"group": app_config.script.METRIC_GROUP_ID, "node": node_id},
         "metrics": metrics,
     }
 
