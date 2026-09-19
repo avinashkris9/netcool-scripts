@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connectivity Checker</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <style>
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+
+        .logo {
+            width: 40px;
+            height: 40px;
+        }
+
+        .navbar {
+            padding: 8px 15px;
+            /* Reduces navbar height */
+        }
+
+
+        pre {
+
+            background-color: #1b1b1b;
+            color: #d1d1d1;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+
+<body data-bs-theme="dark">
+    <header>
+        <nav class="navbar navbar-dark shadow-sm px-3 bg-dark mb-4">
+            <a class="navbar-brand d-flex align-items-center" href="#">
+                <span class="text-white fw-bold fs-5">Connectivity Check Portal</span>
+            </a>
+            <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#helpModal">Help</button>
+        </nav>
+    </header>
+
+    <div class="container">
+
+        <h2 class="mb-4">Capture TCPDump Output</h2>
+        <div class="card p-4">
+
+
+            <form id="tcpdumpForm" class="row g-4 align-items-end needs-validation" novalidate>
+
+                <div class="col-md-4">
+                    <label for="server" class="form-label fw-semibold">SSH Server</label>
+                    <select class="form-select" id="server" name="server" required>
+                        <option value="" disabled selected>Select Probe server</option>
+                    </select>
+
+
+                    <div class="invalid-feedback">Please select a server.</div>
+                </div>
+
+
+                <div class="col-md-4">
+                    <label for="interface" class="form-label fw-semibold">Interface <small class="text-muted">(e.g.,
+                            eth0)</small></label>
+                    <input type="text" class="form-control" id="interface" name="interface" placeholder="any"
+                        value="any" required data-bs-toggle="tooltip"
+                        title="Filter on specific interface, use 'any' if no filtering needed">
+
+
+                    <div class="invalid-feedback">Interface is required. Use 'any' if filtering is not needed.</div>
+                </div>
+                <div class="col-md-4">
+                    <label for="protocol" class="form-label fw-semibold">Protocol</label>
+                    <select class="form-select" id="protocol" name="protocol">
+                        <option value="any">Any</option>
+                        <option value="tcp">TCP</option>
+                        <option value="udp">UDP</option>
+                        <option value="icmp">ICMP</option>
+                    </select>
+
+                </div>
+<div class="col-md-4">
+    <label for="useProbe" class="form-label fw-semibold">Use Probe Server</label>
+    <small class="text-muted">as src or dest</small>
+    <select class="form-select" id="useProbe" name="useProbe">
+        <option value="">Select as Source or Destination</option>
+        <option value="src">Source</option>
+        <option value="dest">Destination</option>
+    </select>
+</div>
+
+
+                <div class="col-md-4">
+                    <label for="source_ip" class="form-label fw-semibold">Source IP <small
+                            class="text-muted">src(Optional)</small></label>
+
+                    <input type="text" class="form-control" id="source_ip" name="source_ip" placeholder="Enter IP..."
+                        data-bs-toggle="tooltip" title="Filter packets by source IP(src). Please read tcpdump manpage">
+
+                    <div class="invalid-feedback">Please enter a valid IP address.</div>
+                </div>
+
+
+                <div class="col-md-4">
+                    <label for="dst_ip" class="form-label fw-semibold">Destination IP <small
+                            class="text-muted">dst(Optional)</small></label>
+
+                    <input type="text" class="form-control" id="dst_ip" name="dst_ip" placeholder="Enter IP..."
+                        data-bs-toggle="tooltip" title="Filter packets by destination IP(dst)">
+
+                    <div class="invalid-feedback">Please enter a valid IP address.</div>
+                </div>
+                <div class="col-md-4">
+                    <label for="port" class="form-label fw-semibold">Port <small
+                            class="text-muted">(Optional)</small></label>
+                    <input type="number" class="form-control" id="port" name="port" placeholder="e.g. 162" min="1"
+                        max="65535" data-bs-toggle="tooltip" title="Filter packets by port number">
+
+
+                    <div class="invalid-feedback">Enter a valid port number (1–65535).</div>
+                </div>
+
+
+
+
+                <div class="col-md-4">
+                    <label for="duration" class="form-label fw-semibold">Duration (seconds)</label>
+                    <input type="number" class="form-control" id="duration" name="duration" min="10" max="600"
+                        placeholder="60" value="60" required data-bs-toggle="tooltip"
+                        title="Capture duration in seconds (10–600, default 60)">
+
+
+                    <div class="invalid-feedback">Enter duration between 10–600 seconds.</div>
+                </div>
+
+
+                <div class="col-md-4">
+                    <label for="packet_count" class="form-label fw-semibold">Packet Count <small
+                            class="text-muted">(Optional)</small></label>
+
+                    <input type="number" class="form-control" id="packet_count" name="packet_count"
+                        placeholder="e.g. 100" data-bs-toggle="tooltip"
+                        title="Max number of packets to capture (Optional)">
+
+                </div>
+
+
+
+                <div class="col-md-6" id="orGrepGroup">
+                    <label for="or_grep" class="form-label fw-semibold">Filter Output (Multiple)</label>
+                    <textarea rows="3" class="form-control" placeholder="Enter text to filter, use newline for multiple"
+                        id="or_grep" name="or_grep" aria-label="or_grep"></textarea>
+                    <div class="invalid-feedback">Each line must only contain letters, numbers, spaces, or dots.</div>
+                </div>
+
+                <div class="col-md-6 d-none" id="andGrepGroup">
+                    <label for="and_grep" class="form-label fw-semibold">Filter Output 2</label>
+                    <div class="input-group">
+                        <span class="input-group-text" id="and_grep_wrapping">Filter Output 2</span>
+                        <input type="text" class="form-control" placeholder="Additional text to grep" id="and_grep"
+                            pattern="^[a-zA-Z0-9 .]+$" name="and_grep" aria-label="and_grep"
+                            aria-describedby="and_grep_wrapping">
+                        <div class="invalid-feedback">Only letters, numbers, spaces, and dots are allowed</div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="generatePcap" name="generate_pcap"
+                            value="yes">
+                        <label class="form-check-label ms-1" for="generatePcap">Generate .pcap file</label>
+                    </div>
+
+                </div>
+
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-outline-info w-100" id="validate">Validate</button>
+                </div>
+                <div class="col-md-12 d-flex justify-content-end gap-2">
+
+                    <button type="submit" name="action" value="start" class="btn btn-primary w-100">Start
+                        Capture</button>
+
+                    <button type="button" class="btn btn-danger w-100" id="stopCapture" disabled>Stop Capture</button>
+
+                </div>
+            </form>
+
+            <!-- Loading Spinner -->
+            <div id="loading" class="text-center mt-4" style="display: none;">
+                <div class="spinner-border text-success  m-3" role="status" style="width: 3rem; height: 3rem;">
+                    <span class="visually-hidden">Capturing... Please wait.</span>
+                </div>
+                <p class="mt-2">Capturing... Please wait.</p>
+            </div>
+        </div>
+
+        <div id="validateBlock" class="alert alert-success mt-4 d-none" role="alert">
+            <h4 id="validateOutputHeader" class="alert-heading"></h4>
+            <div id="output">
+                <pre id="validateMessage" class="mb-0"></pre>
+            </div>
+        </div>
+        <div class="card mt-4 d-none text-white mb-3 " id="outputCard">
+            <div id="outputCardHeader" class="card-header bg-success text-white">
+                Tcpdump Output
+            </div>
+
+            <div class="card-body bg-dark overflow-auto" style="max-height: 800px;">
+                <h6 id="tcpCommand" class="card-subtitle mb-2 text-muted"></h6>
+                <hr>
+                <div id="output">
+                    <pre id="tcpdumpOutput" class="mb-0"></pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-end mt-3">
+            <button id="downloadBtn" class="btn btn-success d-none">Download Output</button>
+        </div>
+
+
+
+    </div>
+
+
+    <!-- Help boc -->
+    <div class="modal fade" id="helpModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Connectivity Checker Help</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>This tool perform connectivity check using TCP Dump. It connects through SSH to Probe Server
+                        selected on drop down.
+                        You can filter by:</p>
+                    <ul>
+                        <li><strong>Interface</strong>: Example: <code>eth0</code>, <code>any</code></li>
+                        <li><strong>IP</strong>: Source/destination IP filter</li>
+                        <li><strong>Port</strong>: Optional port filter</li>
+                        <li><strong>Protocol</strong>: TCP, UDP, ICMP, or Any</li>
+                        <li><strong>Duration</strong>: Capture time in seconds</li>
+                        <li><strong>Packet Count</strong>: Optional limit on packet capture</li>
+                    </ul>
+                    <p>Example:</p>
+                    <pre>tcpdump -vvv -nn  host 8.8.8.8 and  tcp</pre>
+                    <h6>Button Functionality:</h6>
+                    <ul>
+                        <li><strong>Validate:</strong> Checks if all form fields are valid and gives feedback. If
+                            everything is correct, a tcpdump command is generated.</li>
+                        <li><strong>Start Capture:</strong> Initiates the packet capture process based on the validated
+                            parameters. Starts tcpdump with your chosen filters.</li>
+                        <li><strong>Stop Capture:</strong> Stops an ongoing packet capture session (will only be enabled
+                            once the capture is running).</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let pollingInterval = null;
+        let pollingStartTime = null;
+        let retryCount = 0;
+        const retryInterval = 6000; // 3 seconds
+        const maxRetries = 200; // 10 minutes total
+        let countdownTimer; // Store the countdown interval ID
+        let stopPolling = false;
+        const generatePcapCheckbox = document.getElementById("generatePcap");
+        const textarea = document.getElementById('or_grep');
+        const andGrepGroup = document.getElementById("andGrepGroup");
+        const orGrepGroup = document.getElementById("orGrepGroup");
+     const useProbeSelect = document.getElementById("useProbe");
+    const serverSelect = document.getElementById("server");
+    const sourceInput = document.getElementById("source_ip");
+    const destInput = document.getElementById("dst_ip");
+
+    function updateFields() {
+        const probeIp = serverSelect.value;
+        const useProbe = useProbeSelect.value;
+
+        // Clear and enable both fields
+        sourceInput.disabled = false;
+        destInput.disabled = false;
+        sourceInput.value = "";
+        destInput.value = "";
+
+        if (useProbe === "src" && probeIp) {
+            sourceInput.value = probeIp;
+            sourceInput.disabled = true;
+        } else if (useProbe === "dest" && probeIp) {
+            destInput.value = probeIp;
+            destInput.disabled = true;
+        }
+    }
+
+    // Event listeners
+    useProbeSelect.addEventListener("change", updateFields);
+    serverSelect.addEventListener("change", updateFields);
+
+
+        generatePcapCheckbox.addEventListener("change", function () {
+            if (generatePcapCheckbox.checked) {
+                andGrepGroup.classList.add("d-none");
+                orGrepGroup.classList.add("d-none")
+                document.getElementById("and_grep").value = '';
+
+                textarea.value = '';
+            } else {
+                andGrepGroup.classList.remove("d-none");
+                orGrepGroup.classList.remove("d-none")
+                document.getElementById("and_grep").value = '';
+                textarea.value = '';
+
+
+            }
+        });
+
+
+        textarea.addEventListener('input', () => {
+            const lines = textarea.value.split('\n');
+            const isValid = lines.every(line => /^[a-zA-Z0-9 .]*$/.test(line));
+
+            if (!isValid) {
+                textarea.setCustomValidity("Each line must only contain letters, numbers, spaces, or dots.");
+            } else {
+                textarea.setCustomValidity(""); // clear custom error
+            }
+        });
+        document.getElementById("or_grep").addEventListener("input", function () {
+            const inputGroup = document.getElementById("andGrepGroup");
+            if (this.value.trim() !== "") {
+                inputGroup.classList.remove("d-none");
+            } else {
+                inputGroup.classList.add("d-none");
+                document.getElementById("and_grep").value = '';
+            }
+        });
+        const ipInput = document.getElementById("source_ip");
+        ipInput.addEventListener('input', () => {
+            const ip = ipInput.value.trim();
+            const isValid = isValidIP(ip);
+
+            if (!isValid) {
+                ipInput.setCustomValidity("Not a valid IP Address");
+            } else {
+                ipInput.setCustomValidity(""); // clear custom error
+            }
+        });
+        const ipDestInput = document.getElementById("dst_ip");
+        ipDestInput.addEventListener('input', () => {
+            const ip = ipInput.value.trim();
+            const isValid = isValidIP(ip);
+
+            if (!isValid) {
+                ipDestInput.setCustomValidity("Not a valid IP Address");
+            } else {
+                ipDestInput.setCustomValidity(""); // clear custom error
+            }
+        });
+
+        document.getElementById("tcpdumpForm").addEventListener("submit", function (event) {
+            event.preventDefault();
+
+            if (!this.checkValidity() || !ipValidation()) {
+                this.classList.add("was-validated");
+                event.stopPropagation();
+                return;
+            }
+            resetValidation();
+            document.getElementById("loading").style.display = "block";
+            document.getElementById("tcpdumpOutput").innerHTML = "";
+            document.getElementById("tcpCommand").innerHTML = "";
+            document.getElementById("stopCapture").disabled = false;
+            document.querySelector("#tcpdumpForm button[type='submit']").disabled = true;
+            document.getElementById("outputCard").classList.add("d-none");
+            document.getElementById("downloadBtn").classList.add("d-none");
+            document.getElementById('validateBlock').classList.add("d-none");
+            setOutputCardAsError(false);
+            let formData = new FormData(this);
+            stopPolling = false;
+            let probe = formData.get("server");
+            formData.append("action", "start");
+
+            fetch("cgi-bin/connectivity_checker.cgi", {
+                method: "POST",
+                body: formData
+            })
+                .then(response => response.text())
+                .then(text => {
+                    let data;
+                    //  console.log(text);
+                    try {
+                        data = JSON.parse(text);
+
+                    } catch (e) {
+                        throw new Error("Invalid JSON response: " + text);
+                    }
+                    id = data.id;
+                    console.log(`${JSON.stringify(data, null, 2)}`)
+                    if (!id) return Promise.reject(`${JSON.stringify(data, null, 2)}`);
+
+                    localStorage.setItem('hc_id', JSON.stringify(data));
+                    console.log("Execution started with ID:", id);
+                    document.getElementById("tcpCommand").textContent = data.command;
+                    checkStatus(id, data.pid, data.pcap, probe);
+
+
+                })
+                .catch(error => {
+                    showError(error);
+                });
+        });
+        function resetValidation() {
+            const form = document.getElementById('tcpdumpForm');
+            form.classList.remove('was-validated');
+
+            const inputs = form.querySelectorAll('.is-invalid, .is-valid');
+            inputs.forEach(el => el.classList.remove('is-invalid', 'is-valid'));
+        }
+        function ipValidation() {
+
+            const ipInput = document.getElementById("source_ip");
+            const dstInput = document.getElementById("dst_ip");
+            return ipValidationLogic(ipInput) && ipValidationLogic(dstInput)
+        }
+
+        function ipValidationLogic(ipInput) {
+            const ip = ipInput.value.trim();
+            let isIPValid = true;
+
+            // Allow empty (since it's optional), but validate if it's non-empty
+            if (ip) {
+                if (ip && !isValidIP(ip)) {
+                    ipInput.classList.add("is-invalid");
+                    isIPValid = false;
+                } else {
+                    ipInput.classList.remove("is-invalid");
+                    ipInput.classList.add("is-valid");
+                    isIPValid = true;
+                }
+            }
+            return isIPValid;
+        }
+        document.getElementById('validate').addEventListener('click', function () {
+            const form = document.getElementById('tcpdumpForm');
+
+
+            if (!form.checkValidity() || !ipValidation()) {
+                form.classList.add("was-validated");
+
+                return
+            }
+
+            resetValidation();
+
+
+            // If form is valid, continue to CGI
+            const formData = new FormData(form);
+            const validateBtn = this;
+
+            formData.append("action", "validate");
+            validateBtn.disabled = true;
+            validateBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Validating...`;
+
+            fetch('cgi-bin/connectivity_checker.cgi', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.text())
+                .then(text => {
+                    let data;
+                    console.log(text);
+                    try {
+                        data = JSON.parse(text);
+
+                    } catch (e) {
+                        throw new Error("Invalid JSON response: " + text);
+                    }
+                    if (data.status != "valid") {
+                        return Promise.reject(`${JSON.stringify(data, null, 2)}`);
+                    }
+                    showValidationOutput(data.command)
+                    // document.getElementById("tcpCommand").textContent = data.command;
+                    // document.getElementById("outputCard").classList.remove("d-none");
+
+                })
+
+                .catch(error => {
+                    console.error('Error during validation:', error);
+                    let data = JSON.parse(error);
+                    showValidationOutput(data.command, data.message, true);
+                    //setOutputCardAsError(true);
+                    alert('Validation failed.');
+                })
+                .finally(() => {
+                    validateBtn.disabled = false;
+                    validateBtn.innerHTML = `Validate`;
+                });
+        });
+
+
+
+
+        document.getElementById("stopCapture").addEventListener("click", function () {
+
+            const st = JSON.parse(localStorage.getItem("hc_id"))
+            console.log(st);
+            let formData = new FormData(document.getElementById("tcpdumpForm"));
+            let probe = formData.get("server");
+            var pcapFilename="";
+            if (formData.get("generate_pcap"))
+            {
+                pcapFilename= `${st.pid}.pcap`
+            }
+
+
+            fetch(`cgi-bin/connectivity_checker.cgi?action=stop&id=${st.id}&pid=${st.pid}&server=${probe}&pcap=${pcapFilename}`, {
+                method: "GET"
+            })
+                .then(response => response.text())
+                .then(text => {
+                    let data;
+                    let status = "";
+                    if (!text) return Promise.reject("Unexpected empty response");
+                    console.log(text);
+                    try {
+                        data = JSON.parse(text);
+                    } catch (e) {
+                        throw new Error("Invalid JSON response: " + text);
+                    }
+
+                    console.log(` stopped id: ${id} output :${text}`);
+                    stopTimeoutCountdown();
+                    stopPolling = true;
+                    handleCompletion(data);
+
+                })
+                .catch(error => {
+                    stopTimeoutCountdown();
+                    showError(error);
+                });
+        });
+
+        document.addEventListener('DOMContentLoaded', function () {
+            fetch('servers.json?v=' + new Date().getTime())
+                .then(response => response.json())
+                .then(s => {
+                    const serverSelect = document.getElementById("server");
+                    servers = s.probeServers;
+                    servers.forEach(server => {
+                        const option = document.createElement("option");
+                        option.value = server;
+                        option.textContent = server;
+                        serverSelect.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error("Error loading server list:", error);
+                });
+
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+
+        });
+
+
+        function handleDownload(event) {
+            const btn = event.currentTarget;
+            const pid = btn.dataset.id;
+            console.log(pid);
+            let url = `logs/tcpdump_output_${pid}.log`;
+
+            if (pid.endsWith(".pcap")) {
+                url = `logs/${pid}`;
+            }
+
+
+
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error("File not found.");
+                    return response.blob();
+                })
+                .then(blob => {
+                    const link = document.createElement("a");
+                    link.href = URL.createObjectURL(blob);
+                    link.download = `${url}`;
+                    link.click();
+                })
+                .catch(error => {
+                    console.error("Download error:", error);
+                    alert("Error downloading file: " + error.message);
+                });
+        }
+
+        function add_download_button(pid, pcap) {
+            const downloadBtn = document.getElementById("downloadBtn");
+
+
+            if (pcap) { downloadBtn.dataset.id = pcap; } else { downloadBtn.dataset.id = pid; }
+
+            // Remove old click handler before adding
+            downloadBtn.removeEventListener("click", handleDownload);
+            downloadBtn.addEventListener("click", handleDownload);
+        }
+
+        function setOutputCardAsError(statusFlag = true) {
+
+            if (!statusFlag) {
+                document.getElementById("tcpdumpOutput").classList.remove("text-bg-danger", "alert", "alert-danger");
+                document.getElementById("outputCardHeader").classList.remove("bg-danger", "text-bg-danger", "alert", "alert-danger");
+            }
+            else {
+                document.getElementById("tcpdumpOutput").classList.add("text-bg-danger", "alert", "alert-danger");
+                document.getElementById("outputCardHeader").classList.add("bg-danger", "text-bg-danger", "alert", "alert-danger");
+            }
+
+        }
+
+        function showValidationOutput(command, message = '', isFailure = false) {
+            // const outputCard = document.getElementById('outputCard');
+            // const header = document.getElementById('outputCardHeader');
+            // const cmdDisplay = document.getElementById('tcpCommand');
+            // const output = document.getElementById('tcpdumpOutput');
+
+            // header.textContent = 'Validation Result';
+            // cmdDisplay.textContent = command ? `Command: ${command}` : '';
+            // output.textContent = message;
+            // if (message) { setOutputCardAsError(); }
+            // outputCard.classList.remove('d-none');
+            // document.querySelector("#tcpdumpForm button[type='submit']").disabled = false;
+            // document.getElementById("stopCapture").disabled = true;
+            const block = document.getElementById('validateBlock');
+            const header = document.getElementById('validateOutputHeader');
+            const messageBox = document.getElementById('validateMessage');
+            if (isFailure) {
+                block.classList.remove('alert-success');
+                block.classList.add('alert-danger');
+                header.textContent = "Command Validation Failed!";
+            }
+            else {
+                block.classList.add('alert-success');
+                block.classList.remove('alert-danger');
+                header.textContent = "Command Validation Success!";
+            }
+            let content = command ? `Command: ${command}` : '';
+            messageBox.textContent = `${command}\n\n${message}`;
+
+            block.classList.remove('d-none');
+            document.getElementById("outputCard").classList.add("d-none");
+            document.getElementById("downloadBtn").classList.add("d-none");
+            // Enable/disable buttons as needed
+            document.querySelector("#tcpdumpForm button[type='submit']").disabled = false;
+            document.getElementById("stopCapture").disabled = true;
+        }
+        function showError(error) {
+
+            console.log(error);
+            let data = JSON.parse(error);
+            document.getElementById("tcpCommand").textContent = data.command;
+            document.getElementById("loading").style.display = "none";
+            setOutputCardAsError();
+            document.getElementById("tcpdumpOutput").textContent = `Error running tcpdump command !\n${data.message}`;
+
+
+            document.getElementById("outputCard").classList.remove("d-none");
+
+            document.querySelector("#tcpdumpForm button[type='submit']").disabled = false;
+            document.getElementById("stopCapture").disabled = true;
+        }
+
+        function print_results(data, status = "running") {
+            const isRunning = status === "running";
+            const outputEl = document.getElementById("tcpdumpOutput");
+            const outputCard = document.getElementById("outputCard");
+            const downloadBtn = document.getElementById("downloadBtn");
+            const loadingEl = document.getElementById("loading");
+
+            if (!isRunning) {
+                loadingEl.style.display = "none";
+            }
+
+            outputCard.classList.remove("d-none");
+
+            const hasOutput = data.output && data.output.trim() !== "";
+
+            if (hasOutput) {
+                outputEl.textContent = data.output;
+                setOutputCardAsError(false);
+                if (!isRunning) downloadBtn.classList.remove("d-none");
+            } else {
+
+                if (!isRunning) {
+                    downloadBtn.classList.add("d-none");
+                    outputEl.textContent = "No output received";
+                    setOutputCardAsError();
+                }
+
+            }
+
+            outputCard.scrollIntoView({ behavior: "smooth" });
+
+            if (!isRunning) {
+                document.getElementById("stopCapture").disabled = true;
+                document.querySelector("#tcpdumpForm button[type='submit']").disabled = false;
+
+                add_download_button(data.pid, data.pcap);
+            }
+        }
+
+        function checkStatus(id, pid, pcap, probe) {
+            if (stopPolling) {
+                console.log("Polling manually stopped.");
+                return;
+            }
+
+            if (!id) {
+                console.log("No active health check found. Skipping status check.");
+                stopTimeoutCountdown();
+                return;
+            }
+
+            if (retryCount >= maxRetries) {
+                console.warn("Max retries reached. Stopping polling.");
+                alert("tcpdump did not complete in time.");
+                resetUI();
+                return;
+            }
+
+            fetch(`cgi-bin/connectivity_checker.cgi?action=status&id=${id}&pid=${pid}&pcap=${pcap}&server=${probe}`)
+                .then(response => response.text())
+                .then(text => {
+                    let data;
+                    let status = "";
+                    if (!text) return Promise.reject("Unexpected empty response");
+                    console.log(text);
+                    try {
+                        data = JSON.parse(text);
+                    } catch (e) {
+                        throw new Error("Invalid JSON response: " + text);
+                    }
+
+                    console.log(` id: ${id} output :${text}`);
+                    status = data.status;
+                    console.log(`${status}`);
+                    if (status === "completed") {
+                        stopTimeoutCountdown();
+                        handleCompletion(data);
+                    } else if (["invalid"].includes(status)) {
+                        console.log("No active task found");
+                        stopTimeoutCountdown();
+                        localStorage.removeItem('hc_id');
+                        stopTimeoutCountdown();
+                        return Promise.reject(data.message);
+                    } else {
+                        retryCount++;
+                        print_results(data, "running");
+                        setTimeout(() => checkStatus(id, pid, pcap, probe), retryInterval);
+
+
+                    }
+                })
+                .catch(error => {
+                    stopTimeoutCountdown();
+                    handleError("Status:", error);
+                });
+        }
+
+        function handleCompletion(data) {
+            document.getElementById("loading").style.display = "none";
+            document.getElementById("outputCard").classList.remove("d-none");
+            document.getElementById("downloadBtn").classList.remove("d-none");
+            document.querySelector("#tcpdumpForm button[type='submit']").disabled = false;
+            document.getElementById("stopCapture").disabled = true;
+            print_results(data, data.status);
+        }
+
+        function handleError(title, error) {
+            console.error(title, error);
+            alert(`${title}: ${error}`);
+
+        }
+
+        function resetUI() {
+            stopTimeoutCountdown();
+            $('#spinner').removeClass('d-inline-block').addClass('d-none');
+        }
+
+
+        // Start timeout countdown display
+        function startTimeoutCountdown() {
+            let remainingTime = (maxRetries * retryInterval) / 1000; // Convert to seconds
+            stopTimeoutCountdown(); // Ensure no previous countdown is running
+            console.log("hello world");
+            countdownTimer = setInterval(() => {
+                if (remainingTime <= 0 || retryCount >= maxRetries) {
+                    stopTimeoutCountdown();
+                    $('#refresh-btn-text').text("Refresh");
+                    return;
+                }
+
+                $('#refresh-btn-text').text(`Running... (${remainingTime}s left)`);
+                remainingTime--;
+            }, 1000);
+        }
+
+        // Stop timeout countdown
+        function stopTimeoutCountdown() {
+            if (countdownTimer) {
+                clearInterval(countdownTimer);
+                countdownTimer = null;
+            }
+        }
+        function isValidIP(ip) {
+            const regex = /^(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)){3}$/;
+            return regex.test(ip);
+        }
+
+    </script>
+
+</body>
+
+</html>

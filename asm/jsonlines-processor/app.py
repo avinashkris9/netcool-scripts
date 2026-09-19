@@ -3,6 +3,7 @@
 Script to read a large jsonl file and convert it to Netcool ASM File Observer Format
 """
 __author__ = "Avinash Krishnan"
+from pandarallel import pandarallel
 
 import os
 import sys
@@ -11,8 +12,9 @@ import time
 import logging
 import json
 import pandas as pd
-
-
+from pathlib import Path
+import multiprocessing as mp
+pandarallel.initialize(progress_bar=True, nb_workers=6)
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -74,6 +76,80 @@ def set_additional_fields(row):
     return name, tags, version, a_type, b_type, c_type, entity_types, dummy
 
 
+# Function to convert DataFrame row to JSON object
+def process_edge_ids(edge_file_path, id_list):
+
+    chunk = pd.read_json(edge_file_path,  encoding='utf-8', lines=True)
+    df = chunk[chunk['from_device'].isin(id_list)]
+
+    return df
+
+
+def merge_edges(vertex_df, edge_df):
+
+    def applier(row):
+        ids = []
+        relationships = []
+
+        if isinstance(row['to_device'], list):
+            ids.extend(row['to_device'])
+        if 'to_device_new' in row and isinstance(row['to_device_new'], list):
+            ids.extend(row['to_device_new'])
+        if isinstance(row.get('edge_type'), list):
+            relationships.extend(row['edge_type'])
+        if isinstance(row.get('edge_type_new'), list):
+            relationships.extend(row['edge_type_new'])
+
+        return ids, relationships
+
+    c = edge_df.groupby('from_device', as_index=False).agg(list)
+
+    vertex_df = vertex_df.merge(c, left_on="device", right_on="from_device", how='left',
+                                suffixes=('', '_new'))
+
+    vertex_df[['to_device', "edge_type"]] = vertex_df.apply(applier, axis=1, result_type='expand')
+
+    return vertex_df
+
+
+def process_edges(edge_file_path, vertex_df):
+    count = 0
+
+    def applier(row):
+        ids = []
+        relationships = []
+
+        if isinstance(row['to_device'], list):
+            ids.extend(row['to_device'])
+        if 'to_device_new' in row and isinstance(row['to_device_new'], list):
+            ids.extend(row['to_device_new'])
+        if isinstance(row.get('edge_type'), list):
+            relationships.extend(row['edge_type'])
+        if isinstance(row.get('edge_type_new'), list):
+            relationships.extend(row['edge_type_new'])
+
+        return ids, relationships
+
+    with pd.read_json(edge_file_path,  encoding='utf-8', lines=True, chunksize=25000) as x:
+
+        for chunk in x:
+
+            count += len(chunk.index)
+            logger.info(f'Edge Processed {count} rows so far..')
+            c = chunk.groupby('from_device', as_index=False).agg(list)
+            # chunk = chunk.groupby('from_device').apply(
+            #     lambda x: x[['to_device', 'edge_type']].values.tolist()).reset_index(name='Values')
+            # print(c)
+            vertex_df = vertex_df.merge(c, left_on="device", right_on="from_device", how='left',
+                                        suffixes=('', '_new'))
+            # merge causes duplicates. so hack it
+            # print(vertex_df.to_string())
+
+            vertex_df[['to_device', "edge_type"]] = vertex_df.apply(applier, axis=1, result_type='expand')
+
+    return vertex_df
+
+
 @timeit
 def process_data_frame(df, edge_file):
     """
@@ -102,63 +178,25 @@ def process_data_frame(df, edge_file):
     columns_to_check = ['name', 'aType', 'bType', 'cType']
     df[columns_to_check] = df[columns_to_check].map(
         lambda x: None if pd.isna(x) or x == '' or x == 'Not Available' or not x or len(x) == 0 else x)
-    df = process_edges(edge_file, df)
+    # df = process_edges(edge_file, df)
+    pool = mp.Pool()  # use 4 processes
+    funclist = []
+    uniqueIds = df['device'].tolist()
+    for filename in os.listdir("input/edges"):
+        f = os.path.join("input/edges", filename)
+        # process each data frame
+        r = pool.apply_async(process_edge_ids, [f, uniqueIds])
+        funclist.append(r)
+    pool.close()
+    pool.join()
+    x = []
+    for f in funclist:
+        x.append(f.get())  # timeout in 10 seconds
+
+    edges = pd.concat(x)
+    df = merge_edges(df, edges)
+
     return df
-
-# Function to convert DataFrame row to JSON object
-
-
-def process_edges(edge_file_path, vertex_df):
-    def appliers(row):
-        ids = []
-        relationships = []
-
-        # if no to_ids , that means its first run
-
-        if 'to_ids' not in row:
-            return row['to_device'], row['edge_type']
-        if isinstance(row['to_ids'], list):
-            ids.extend(row['to_ids'])
-        if isinstance(row['to_device_y'], list):
-            ids.extend(row['to_device_y'])
-        if isinstance(row['to_relations'], list):
-            relationships.extend(row['to_relations'])
-        if isinstance(row['edge_type_y'], list):
-            relationships.extend(row['edge_type_y'])
-        return ids, relationships
-
-    def applier(row):
-        ids = []
-        relationships = []
-
-        if isinstance(row['to_device'], list):
-            ids.extend(row['to_device'])
-        if 'to_device_new' in row and isinstance(row['to_device_new'], list):
-            ids.extend(row['to_device_new'])
-        if isinstance(row.get('edge_type'), list):
-            relationships.extend(row['edge_type'])
-        if isinstance(row.get('edge_type_new'), list):
-            relationships.extend(row['edge_type_new'])
-
-        return ids, relationships
-    count = 0
-    with pd.read_json(edge_file_path,  encoding='utf-8', lines=True, chunksize=25000) as x:
-        for chunk in x:
-            count += len(chunk.index)
-            logger.info(f'Edge Processed {count} rows so far..')
-            c = chunk.groupby('from_device', as_index=False).agg(list)
-            # chunk = chunk.groupby('from_device').apply(
-            #     lambda x: x[['to_device', 'edge_type']].values.tolist()).reset_index(name='Values')
-            # print(c)
-            vertex_df = vertex_df.merge(c, left_on="device", right_on="from_device", how='left',
-                                        suffixes=('', '_new'))
-            # merge causes duplicates. so hack it
-            # print(vertex_df.to_string())
-
-            vertex_df[['to_device', "edge_type"]] = vertex_df.apply(applier, axis=1, result_type='expand')
-            vertex_df.drop(vertex_df.filter(regex='_new$').columns, axis=1, inplace=True)
-
-    return vertex_df
 
 
 def row_to_json(row):
@@ -198,9 +236,15 @@ def generate_asm_using_loads(input_file_path, output_file_path, edge_file):
                 count += len(chunk.index)
                 logger.info(f'Processed {count} rows so far..')
                 df = process_data_frame(chunk, edge_file)
+              #  json_lines = df.parallel_apply(row_to_json, axis=1)
+                pool = mp.Pool()
+                results = []
+                for json_str in pool.imap_unordered(row_to_json, [row for _, row in df.iterrows()]):
+                    results.append(json_str)
+                pool.close()
+                pool.join()
 
-                json_lines = df.apply(row_to_json, axis=1)
-                file2.writelines(json_lines)
+                file2.writelines(results)
 
     logger.info(f"Total Rows in input csv {count}")
 
@@ -210,4 +254,5 @@ if __name__ == "__main__":
     input_file = os.path.join(cwd, "input/device-details.jsonl")
     output_file = os.path.join(cwd, "output/device-details.jsonl")
     edge_file = os.path.join(cwd, "input/edges.jsonl")
+
     generate_asm_using_loads(input_file, output_file, edge_file)
