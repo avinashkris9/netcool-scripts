@@ -5,6 +5,7 @@ Script to read a large jsonl file and convert it to Netcool ASM File Observer Fo
 __author__ = "Avinash Krishnan"
 
 import os
+import sys
 from functools import wraps
 import time
 import logging
@@ -73,7 +74,8 @@ def set_additional_fields(row):
     return name, tags, version, a_type, b_type, c_type, entity_types, dummy
 
 
-def process_data_frame(df):
+@timeit
+def process_data_frame(df, edge_file):
     """
     Function to process the DataFrame to proper format required by ASM.
     """
@@ -93,16 +95,70 @@ def process_data_frame(df):
     # df = df[['entityTypes','uniqueId','deviceIdentificationId','location','province','aType', 'bType', 'cType']]
  # Replace 'None' values in specified columns with 'pd.NA'
     # Specify columns to check for None values
-    columns_to_check = ['name', 'aType', 'bType', 'cType']
-
-    df[columns_to_check] = df[columns_to_check].map(
-        lambda x: None if pd.isna(x) or x == '' or x == 'NotAvailable' else x)
 
     # Drop columns with all missing values
     df = df.dropna(axis=1, how='all')
+
+    columns_to_check = ['name', 'aType', 'bType', 'cType']
+    df[columns_to_check] = df[columns_to_check].map(
+        lambda x: None if pd.isna(x) or x == '' or x == 'Not Available' or not x or len(x) == 0 else x)
+    df = process_edges(edge_file, df)
     return df
 
 # Function to convert DataFrame row to JSON object
+
+
+def process_edges(edge_file_path, vertex_df):
+    def appliers(row):
+        ids = []
+        relationships = []
+
+        # if no to_ids , that means its first run
+
+        if 'to_ids' not in row:
+            return row['to_device'], row['edge_type']
+        if isinstance(row['to_ids'], list):
+            ids.extend(row['to_ids'])
+        if isinstance(row['to_device_y'], list):
+            ids.extend(row['to_device_y'])
+        if isinstance(row['to_relations'], list):
+            relationships.extend(row['to_relations'])
+        if isinstance(row['edge_type_y'], list):
+            relationships.extend(row['edge_type_y'])
+        return ids, relationships
+
+    def applier(row):
+        ids = []
+        relationships = []
+
+        if isinstance(row['to_device'], list):
+            ids.extend(row['to_device'])
+        if 'to_device_new' in row and isinstance(row['to_device_new'], list):
+            ids.extend(row['to_device_new'])
+        if isinstance(row.get('edge_type'), list):
+            relationships.extend(row['edge_type'])
+        if isinstance(row.get('edge_type_new'), list):
+            relationships.extend(row['edge_type_new'])
+
+        return ids, relationships
+    count = 0
+    with pd.read_json(edge_file_path,  encoding='utf-8', lines=True, chunksize=25000) as x:
+        for chunk in x:
+            count += len(chunk.index)
+            logger.info(f'Edge Processed {count} rows so far..')
+            c = chunk.groupby('from_device', as_index=False).agg(list)
+            # chunk = chunk.groupby('from_device').apply(
+            #     lambda x: x[['to_device', 'edge_type']].values.tolist()).reset_index(name='Values')
+            # print(c)
+            vertex_df = vertex_df.merge(c, left_on="device", right_on="from_device", how='left',
+                                        suffixes=('', '_new'))
+            # merge causes duplicates. so hack it
+            # print(vertex_df.to_string())
+
+            vertex_df[['to_device', "edge_type"]] = vertex_df.apply(applier, axis=1, result_type='expand')
+            vertex_df.drop(vertex_df.filter(regex='_new$').columns, axis=1, inplace=True)
+
+    return vertex_df
 
 
 def row_to_json(row):
@@ -111,25 +167,38 @@ def row_to_json(row):
     Removes null columns
     Pandas use ujson which do undesired string escaping. Hence using json.dumps
     """
-    row_without_null_columns = row.dropna()
+
     # Convert the modified row to a dictionary
-    row_dict = row_without_null_columns.to_dict()
+    row_without_null_columns = row.dropna()
+    edge_references = []
+
+    if 'to_device' in row_without_null_columns and row_without_null_columns['to_device']:
+        for device, relationship in zip(row_without_null_columns['to_device'], row_without_null_columns['edge_type']):
+            edge_references.append({"_toUniqueId": device, "edgeType": relationship})
+        row_without_null_columns['references'] = edge_references
+        row_without_null_columns.drop(['to_device', 'edge_type'])
     # Convert the dictionary to a JSON string
+  # Drop 'toIds_x' and 'toIds_y' columns only if they exist
+    row_without_null_columns.drop(labels=[col for col in row_without_null_columns.index.to_list() if col in [
+        "to_device", "edge_type", "from_device"]], inplace=True, errors='ignore')
+
+    row_dict = row_without_null_columns.to_dict()
     json_string = json.dumps(row_dict)
     return f'v: {json_string}\n'
 
 
 @timeit
-def generate_asm_using_loads(input_file_path, output_file_path):
+def generate_asm_using_loads(input_file_path, output_file_path, edge_file):
 
     count = 0
-    with open(output_file_path, 'w', encoding='utf-8') as file2:
+    with open(output_file_path, 'w+', encoding='utf-8') as file2:
 
         with pd.read_json(input_file_path, lines=True, chunksize=25000) as reader:
             for chunk in reader:
                 count += len(chunk.index)
                 logger.info(f'Processed {count} rows so far..')
-                df = process_data_frame(chunk)
+                df = process_data_frame(chunk, edge_file)
+
                 json_lines = df.apply(row_to_json, axis=1)
                 file2.writelines(json_lines)
 
@@ -140,4 +209,5 @@ if __name__ == "__main__":
     cwd = os.getcwd()
     input_file = os.path.join(cwd, "input/device-details.jsonl")
     output_file = os.path.join(cwd, "output/device-details.jsonl")
-    generate_asm_using_loads(input_file, output_file)
+    edge_file = os.path.join(cwd, "input/edges.jsonl")
+    generate_asm_using_loads(input_file, output_file, edge_file)

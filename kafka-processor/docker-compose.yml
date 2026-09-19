@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  zookeeper:
+
+    networks:
+      kafka_network:
+        aliases:
+          - cmak
+    image: bitnami/zookeeper:latest
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+
+  kafka:
+    image: bitnami/kafka:3.4.0-debian-11-r0
+    container_name: kafka
+    networks:
+      kafka_network:
+        aliases:
+          - kafka
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      - KAFKA_BROKER_ID=1
+      - KAFKA_LISTENERS=LISTENER_DOCKER_INTERNAL://0.0.0.0:29092,LISTENER_DOCKER_EXTERNAL://0.0.0.0:9092
+      - KAFKA_ADVERTISED_LISTENERS=LISTENER_DOCKER_INTERNAL://kafka:29092,LISTENER_DOCKER_EXTERNAL://localhost:9092
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=LISTENER_DOCKER_INTERNAL:PLAINTEXT,LISTENER_DOCKER_EXTERNAL:PLAINTEXT
+      - KAFKA_INTER_BROKER_LISTENER_NAME=LISTENER_DOCKER_INTERNAL
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+    depends_on:
+      - zookeeper
+
+
+  echo-server:
+    image: ealen/echo-server
+    container_name: echo-server
+    ports:
+      - "8080:80"
+networks:
+  kafka_network:
+    name: argades_kafka_net
+    driver: bridge
